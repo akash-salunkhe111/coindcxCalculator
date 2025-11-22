@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CoinDCX Spot Fee Calculator</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        --bg: #f5f7fb;
+        --fg: #0b1526;
+        --muted: #5c6b88;
+        --accent: #ff4d4f;
+        --card: #ffffff;
+        --border: #d9e1f2;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at top, #f0f5ff 0%, #eef2fb 40%, #f5f7fb 100%);
+        color: var(--fg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      .calculator {
+        background: var(--card);
+        width: min(960px, 100%);
+        border-radius: 18px;
+        padding: 32px;
+        box-shadow: 0 20px 60px rgba(11, 21, 38, 0.15);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(1.6rem, 3vw, 2rem);
+      }
+
+      .subtitle {
+        margin: 0 0 24px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+      }
+
+      label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+
+      input[type="number"] {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 16px;
+        font-size: 1rem;
+        transition: border 0.2s ease;
+      }
+
+      input[type="number"]:focus {
+        border-color: var(--accent);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.2);
+      }
+
+      .fee-summary {
+        margin-top: 28px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        padding: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+      }
+
+      .fee-chip {
+        background: #f8fafc;
+        border-radius: 14px;
+        padding: 12px 16px;
+      }
+
+      .fee-chip strong {
+        display: block;
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+
+      .results {
+        margin-top: 32px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        padding: 24px;
+        background: #fefefe;
+      }
+
+      .results h2 {
+        margin-top: 0;
+        margin-bottom: 16px;
+      }
+
+      .result-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(219, 227, 244, 0.7);
+        font-size: 0.95rem;
+      }
+
+      .result-row:last-child {
+        border-bottom: none;
+      }
+
+      .result-row span:last-child {
+        font-weight: 600;
+      }
+
+      .net-profit {
+        font-size: 1.2rem;
+        color: var(--accent);
+        font-weight: 700;
+        padding-top: 12px;
+      }
+
+      .note {
+        margin-top: 18px;
+        font-size: 0.85rem;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      @media (max-width: 600px) {
+        .calculator {
+          padding: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="calculator">
+      <h1>CoinDCX Spot Charges Calculator</h1>
+      <p class="subtitle">
+        Regular user fees only · Maker & Taker 0.50% · 18% GST on fees · 30% tax on net profit
+      </p>
+
+      <div class="grid">
+        <div>
+          <label for="cost">Entry amount (INR)</label>
+          <input id="cost" type="number" min="0" placeholder="e.g. 100000" />
+        </div>
+        <div>
+          <label for="profitPercent">Target profit (%)</label>
+          <input id="profitPercent" type="number" min="0" step="0.01" placeholder="e.g. 10" />
+        </div>
+      </div>
+
+      <section class="fee-summary">
+        <div class="fee-chip">
+          <strong>Spot trading fee</strong>
+          0.50% (maker or taker) per side
+        </div>
+        <div class="fee-chip">
+          <strong>GST on fees</strong>
+          18% of total trading fees
+        </div>
+        <div class="fee-chip">
+          <strong>Tax on profit</strong>
+          30% applied after fees
+        </div>
+      </section>
+
+      <section class="results" aria-live="polite">
+        <h2>Breakdown</h2>
+        <div class="result-row">
+          <span>Target exit amount</span>
+          <span id="sellValue">₹0.00</span>
+        </div>
+        <div class="result-row">
+          <span>Gross profit (before fees)</span>
+          <span id="grossProfit">₹0.00</span>
+        </div>
+        <div class="result-row">
+          <span>Total trading fees (buy + sell)</span>
+          <span id="tradingFees">₹0.00</span>
+        </div>
+        <div class="result-row">
+          <span>GST on fees</span>
+          <span id="gst">₹0.00</span>
+        </div>
+        <div class="result-row">
+          <span>Profit after fees (pre-tax)</span>
+          <span id="postFeeProfit">₹0.00</span>
+        </div>
+        <div class="result-row">
+          <span>Profit % after fees (pre-tax)</span>
+          <span id="postFeeProfitPercent">0.00%</span>
+        </div>
+        <div class="result-row">
+          <span>30% tax on profit</span>
+          <span id="tax">₹0.00</span>
+        </div>
+        <div class="result-row net-profit">
+          <span>Net profit received</span>
+          <span id="netProfit">₹0.00</span>
+        </div>
+        <div class="result-row">
+          <span>Net profit percentage</span>
+          <span id="netProfitPercent">0.00%</span>
+        </div>
+      </section>
+
+      <p class="note">
+        Fees sourced from CoinDCX fee schedule (Regular users, Spot). Calculations assume one buy
+        and one sell trade executed as taker orders at 0.50% each. GST applies only to trading
+        fees. Profit taxation is calculated only when post-fee profit is positive.
+      </p>
+    </main>
+
+    <script>
+      const FEE_RATE = 0.005; // 0.50%
+      const GST_RATE = 0.18;
+      const TAX_RATE = 0.3;
+
+      const elements = {
+        cost: document.getElementById("cost"),
+        profitPercent: document.getElementById("profitPercent"),
+        sellValue: document.getElementById("sellValue"),
+        grossProfit: document.getElementById("grossProfit"),
+        tradingFees: document.getElementById("tradingFees"),
+        gst: document.getElementById("gst"),
+        postFeeProfit: document.getElementById("postFeeProfit"),
+        postFeeProfitPercent: document.getElementById("postFeeProfitPercent"),
+        tax: document.getElementById("tax"),
+        netProfit: document.getElementById("netProfit"),
+        netProfitPercent: document.getElementById("netProfitPercent"),
+      };
+
+      const currencyFormatter = new Intl.NumberFormat("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+
+      const formatCurrency = (value) =>
+        isFinite(value) ? `₹${currencyFormatter.format(value)}` : "₹0.00";
+
+      function calculate() {
+        const cost = Number(elements.cost.value) || 0;
+        const percent = Number(elements.profitPercent.value) || 0;
+
+        if (cost <= 0 || percent <= 0) {
+          updateResults(0, 0, 0, 0, 0, 0, 0, 0, 0);
+          return;
+        }
+
+        const grossProfit = (cost * percent) / 100;
+        const sellValue = cost + grossProfit;
+
+        const buyFee = cost * FEE_RATE;
+        const sellFee = sellValue * FEE_RATE;
+        const totalTradingFees = buyFee + sellFee;
+        const gst = totalTradingFees * GST_RATE;
+
+        const profitAfterFees = grossProfit - totalTradingFees - gst;
+        const profitAfterFeesPercent = cost > 0 ? (profitAfterFees / cost) * 100 : 0;
+        const taxableProfit = Math.max(profitAfterFees, 0);
+        const tax = taxableProfit * TAX_RATE;
+        const netProfit = profitAfterFees - tax;
+        const netProfitPercent = cost > 0 ? (netProfit / cost) * 100 : 0;
+
+        updateResults(
+          sellValue,
+          grossProfit,
+          totalTradingFees,
+          gst,
+          profitAfterFees,
+          profitAfterFeesPercent,
+          tax,
+          netProfit,
+          netProfitPercent
+        );
+      }
+
+      function updateResults(
+        sellValue,
+        grossProfit,
+        tradingFees,
+        gst,
+        postFeeProfit,
+        postFeeProfitPercent,
+        tax,
+        netProfit,
+        netProfitPercent
+      ) {
+        elements.sellValue.textContent = formatCurrency(sellValue);
+        elements.grossProfit.textContent = formatCurrency(grossProfit);
+        elements.tradingFees.textContent = formatCurrency(tradingFees);
+        elements.gst.textContent = formatCurrency(gst);
+        elements.postFeeProfit.textContent = formatCurrency(postFeeProfit);
+        elements.postFeeProfitPercent.textContent = `${
+          isFinite(postFeeProfitPercent) ? postFeeProfitPercent.toFixed(2) : "0.00"
+        }%`;
+        elements.tax.textContent = formatCurrency(tax);
+        elements.netProfit.textContent = formatCurrency(netProfit);
+        elements.netProfitPercent.textContent = `${
+          isFinite(netProfitPercent) ? netProfitPercent.toFixed(2) : "0.00"
+        }%`;
+      }
+
+      elements.cost.addEventListener("input", calculate);
+      elements.profitPercent.addEventListener("input", calculate);
+    </script>
+  </body>
+</html>
+
